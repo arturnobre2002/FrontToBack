@@ -7,16 +7,16 @@ export default function Home() {
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState("");
+  const [testCoverUrl, setTestCoverUrl] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!username) return;
     
     setLoading(true);
-    setStatusText("Verifying user...");
 
     try {
-      // 1. Verificar o user
+      setStatusText("Verifying user...");
       const resUser = await fetch('/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -30,15 +30,11 @@ export default function Home() {
         return;
       }
 
-      setStatusText(`Fetching scrobbles for ${userData.user}...`);
-
-      // 2. Ir buscar a primeira página de músicas (Teste)
+      setStatusText("Fetching recent scrobbles...");
       const resScrobbles = await fetch(`/api/scrobbles?username=${username}&page=1`);
       const scrobblesData = await resScrobbles.json();
       
       const tracks = scrobblesData.track || [];
-      
-      // 3. Agrupar por Álbum (Tal como no teu Python)
       const userAlbums: UserAlbums = {};
 
       tracks.forEach((t: any) => {
@@ -47,26 +43,67 @@ export default function Home() {
         const trackName = t.name;
 
         if (artist && album && trackName) {
-          const artistNorm = normalizeString(artist);
-          const albumNorm = normalizeString(album);
-          const key = `${artistNorm}|${albumNorm}`;
-
+          const key = `${normalizeString(artist)}|${normalizeString(album)}`;
           if (!userAlbums[key]) {
-            userAlbums[key] = {
-              artist: artist,
-              album: album,
-              tracks: new Set(),
-            };
+            userAlbums[key] = { artist, album, tracks: new Set() };
           }
           userAlbums[key].tracks.add(trackName);
         }
       });
 
-      // Transformar o objeto num array e contar quantos álbuns únicos apanhámos
       const albumArray = Object.values(userAlbums);
       
-      console.log("Álbuns processados:", albumArray);
-      alert(`Success! Processed 200 tracks and found ${albumArray.length} unique albums. Open DevTools (F12) to see them!`);
+      if (albumArray.length === 0) {
+        alert("No albums found in your recent scrobbles!");
+        return;
+      }
+
+      setStatusText("Crosschecking with Spotify...");
+      
+      // Vamos testar com o primeiro álbum da lista
+      const testAlbum = albumArray[0]; 
+
+      console.log(`[1] A perguntar ao Spotify por: ${testAlbum.artist} - ${testAlbum.album}`);
+
+      const spotifyRes = await fetch('/api/spotify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ artist: testAlbum.artist, album: testAlbum.album }),
+      });
+      
+      const spotifyData = await spotifyRes.json();
+      
+      if (!spotifyData.success) {
+        console.warn("Álbum não encontrado no Spotify:", spotifyData.error);
+        alert(`O álbum '${testAlbum.album}' não foi encontrado no Spotify.`);
+        return;
+      }
+
+      // Vamos usar a matemática que importámos! (Não te esqueças de importar a função 'calculateAlbumScore' no topo do ficheiro page.tsx)
+      const { calculateAlbumScore } = await import("@/utils/music-logic");
+      
+      const result = calculateAlbumScore(spotifyData.tracks, testAlbum.tracks);
+      
+      console.log(`[2] Tracklist do Spotify:`, spotifyData.tracks);
+      console.log(`[3] Faixas ouvidas pelo user:`, testAlbum.tracks);
+      console.log(`[4] RESULTADO FINAL: ${result.percentage}% Completo! (Faltam ${result.missing} faixas)`);
+      
+      alert(`Ouviste ${result.percentage}% do álbum ${spotifyData.spAlbumName}! Abre a consola para ver os detalhes.`);
+      
+      setStatusText("Fetching HD cover from iTunes...");
+      const itunesRes = await fetch('/api/itunes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ artist: testAlbum.artist, album: testAlbum.album }),
+      });
+      const itunesData = await itunesRes.json();
+
+      if (itunesData.success) {
+        setTestCoverUrl(itunesData.coverUrl);
+        setStatusText("Done!");
+      } else {
+        setStatusText("Cover not found.");
+      }
 
     } catch (error) {
       console.error(error);
@@ -106,7 +143,6 @@ export default function Home() {
           </button>
         </form>
 
-        {/* Pequeno feedback visual extra */}
         {statusText && (
           <p className="mt-4 text-center text-xs text-white/60 animate-pulse">
             {statusText}
@@ -114,6 +150,18 @@ export default function Home() {
         )}
 
       </div>
+
+      {/* Teste Visual da Capa */}
+      {testCoverUrl && (
+        <div className="mt-8 flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-700">
+          <p className="mb-4 text-white/80 font-medium">Cover fetched successfully:</p>
+          <img 
+            src={testCoverUrl} 
+            alt="Album Cover" 
+            className="h-64 w-64 rounded-xl shadow-[0_0_40px_rgba(255,255,255,0.2)]"
+          />
+        </div>
+      )}
     </main>
   );
 }
