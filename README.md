@@ -31,13 +31,13 @@ The interface features a modern design, providing a fluid and immersive visual e
 
 You will need API keys from the following services:
 - **Last.fm**: [Apply here](https://www.last.fm/api/account/create)
-- **Spotify**: [Create an app here](https://developer.spotify.com/dashboard)
+- **Spotify**: [Create an app here](https://developer.spotify.com/dashboard) (requires Premium)
 
 ### Installation
 
 1. Clone the repository:
    ```bash
-   git clone [https://github.com/your-username/FrontToBack.git](https://github.com/your-username/FrontToBack.git)
+   git clone [https://github.com/arturnobre2002/FrontToBack.git](https://github.com/arturnobre2002/FrontToBack.git)
    cd FrontToBack
    ```
 
