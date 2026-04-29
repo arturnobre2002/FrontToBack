@@ -37,7 +37,7 @@ You will need API keys from the following services:
 
 1. Clone the repository:
    ```bash
-   git clone [https://github.com/arturnobre2002/FrontToBack.git](https://github.com/arturnobre2002/FrontToBack.git)
+   git clone https://github.com/arturnobre2002/FrontToBack.git
    cd FrontToBack
    ```
 
